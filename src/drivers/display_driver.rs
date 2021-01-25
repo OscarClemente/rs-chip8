@@ -44,10 +44,10 @@ impl DisplayDriver {
         canvas.present();
 
         DisplayDriver {
-            canvas: canvas,
-            scale_factor: scale_factor,
-            color_background: color_background,
-            color_foreground: color_foreground,
+            canvas,
+            scale_factor,
+            color_background,
+            color_foreground,
         }
     }
 
