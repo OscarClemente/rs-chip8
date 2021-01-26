@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::prelude::*;
+use rand::Rng;
 
 enum ProgramCounter {
     Next,
@@ -28,8 +29,11 @@ impl OpCode {
     }
 
     pub fn get_nnn(&self) -> usize {
-        let nnn: usize = ((self.lr as usize) << 8) | ((self.rl as usize) << 4) | (self.rr as usize);
-        nnn
+        ((self.lr as usize) << 8) | ((self.rl as usize) << 4) | (self.rr as usize)
+    }
+
+    pub fn get_nn(&self) -> u16 {
+        ((self.rl as u16) << 4) | (self.rr as u16)
     }
 }
 
@@ -44,6 +48,9 @@ pub struct CPU {
     index: u16,
     delay_timer: u8,
     sound_timer: u8,
+    keypad: [bool; 16],
+    keypad_waiting: bool,
+    keypad_register: usize,
 }
 
 impl CPU {
@@ -62,6 +69,9 @@ impl CPU {
             index: 0,
             delay_timer: 0,
             sound_timer: 0,
+            keypad: [false; 16],
+            keypad_waiting: false,
+            keypad_register: 0,
         }
     }
 
@@ -156,7 +166,7 @@ impl CPU {
     /// Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_3xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
         let nn: u16 = (opcode.rl << 4 | opcode.rr) as u16;
-        if u16::from(opcode.lr) == nn {
+        if self.registers[opcode.lr as usize] == nn {
             return ProgramCounter::Skip;
         }
         ProgramCounter::Next
@@ -164,8 +174,7 @@ impl CPU {
 
     /// Skips the next instruction if VX doesn't equal NN. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_4xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let nn: u16 = (opcode.rl << 4 | opcode.rr) as u16;
-        if u16::from(opcode.lr) != nn {
+        if self.registers[opcode.lr as usize] != opcode.get_nn() {
             return ProgramCounter::Skip;
         }
         ProgramCounter::Next
@@ -173,7 +182,7 @@ impl CPU {
 
     /// Skips the next instruction if VX equals VY. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_5xy0(&mut self, opcode: &OpCode) -> ProgramCounter {
-        if opcode.rl == opcode.rr {
+        if self.registers[opcode.lr as usize] == self.registers[opcode.rl as usize] {
             return ProgramCounter::Skip;
         }
         ProgramCounter::Next
@@ -181,138 +190,195 @@ impl CPU {
 
     /// Sets VX to NN.
     fn execute_op_6xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let nn: u16 = (opcode.rl << 4 | opcode.rr) as u16;
-        self.registers[opcode.lr as usize] = nn;
+        self.registers[opcode.lr as usize] = opcode.get_nn();
         ProgramCounter::Next
     }
 
     /// Adds NN to VX. (Carry flag is not changed)
     fn execute_op_7xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] += opcode.get_nn();
         ProgramCounter::Next
     }
 
     /// Sets VX to the value of VY.
     fn execute_op_8xy0(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] = self.registers[opcode.rl as usize];
         ProgramCounter::Next
     }
 
     /// Sets VX to VX or VY. (Bitwise OR operation)
     fn execute_op_8xy1(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] |= self.registers[opcode.rl as usize];
         ProgramCounter::Next
     }
 
     /// Sets VX to VX and VY. (Bitwise AND operation)
     fn execute_op_8xy2(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] &= self.registers[opcode.rl as usize];
         ProgramCounter::Next
     }
 
     /// Sets VX to VX xor VY.
     fn execute_op_8xy3(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] ^= self.registers[opcode.rl as usize];
         ProgramCounter::Next
     }
 
     /// Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
     fn execute_op_8xy4(&mut self, opcode: &OpCode) -> ProgramCounter {
+        let result = self.registers[opcode.lr as usize] + self.registers[opcode.rl as usize];
+        self.registers[opcode.lr as usize] = result;
+        self.registers[15] = if result > 0xFF { 1 } else { 0 };
         ProgramCounter::Next
     }
 
     /// VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
     fn execute_op_8xy5(&mut self, opcode: &OpCode) -> ProgramCounter {
+        let result = self.registers[opcode.lr as usize] - self.registers[opcode.rl as usize];
+        self.registers[opcode.lr as usize] = result;
+        self.registers[15] = if result > 0 { 1 } else { 0 };
         ProgramCounter::Next
     }
 
     /// Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
     fn execute_op_8xy6(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[15] = (self.registers[opcode.lr as usize] & 0b00000001);
+        self.registers[opcode.lr as usize] >>= 1;
         ProgramCounter::Next
     }
 
     /// Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
     fn execute_op_8xy7(&mut self, opcode: &OpCode) -> ProgramCounter {
+        let result = self.registers[opcode.rl as usize] - self.registers[opcode.lr as usize];
+        self.registers[opcode.lr as usize] = result;
+        self.registers[15] = if result > 0 { 1 } else { 0 };
         ProgramCounter::Next
     }
 
     /// Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
     fn execute_op_8xye(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[15] = (self.registers[opcode.lr as usize] & 0b10000000);
+        self.registers[opcode.lr as usize] <<= 1;
         ProgramCounter::Next
     }
 
     /// Skips the next instruction if VX doesn't equal VY. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_9xy0(&mut self, opcode: &OpCode) -> ProgramCounter {
+        if self.registers[opcode.lr as usize] != self.registers[opcode.rl as usize] {
+            return ProgramCounter::Skip;
+        }
         ProgramCounter::Next
     }
 
     /// Sets I to the address NNN.
     fn execute_op_annn(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.index = opcode.get_nnn() as u16;
         ProgramCounter::Next
     }
 
     /// Jumps to the address NNN plus V0.
     fn execute_op_bnnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        ProgramCounter::Next
+        let address = opcode.get_nnn() + self.registers[0] as usize;
+        ProgramCounter::Jump(address)
     }
 
     /// Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
     fn execute_op_cxnn(&mut self, opcode: &OpCode) -> ProgramCounter {
+        let random_number: u16 = rand::thread_rng().gen::<u8>().into();
+        self.registers[opcode.lr as usize] = random_number & opcode.get_nn();
         ProgramCounter::Next
     }
 
     /// Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N+1 pixels.
     fn execute_op_dxyn(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[15] = 0;
+        for byte in 0..opcode.rr {
+            let y = (self.registers[opcode.rl as usize] + byte as u16) % 32;
+            for bit in 0..8 {
+                let x = (self.registers[opcode.lr as usize] + bit) % 64;
+                let color = (self.ram[(self.index + byte as u16) as usize] >> (7 - bit)) & 0x01;
+                self.registers[15] |= (color & self.vram[y as usize][x as usize]) as u16;
+                self.vram[y as usize][x as usize] ^= color;          
+            }
+        }
+        self.vram_changed = true;
         ProgramCounter::Next
     }
 
     /// Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_ex9e(&mut self, opcode: &OpCode) -> ProgramCounter {
+        if self.keypad[self.registers[opcode.lr as usize] as usize] {
+            return ProgramCounter::Skip;
+        }
         ProgramCounter::Next
     }
     
     /// Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_exa1(&mut self, opcode: &OpCode) -> ProgramCounter {
+        if !self.keypad[self.registers[opcode.lr as usize] as usize] {
+            return ProgramCounter::Skip;
+        }
         ProgramCounter::Next
     }
 
     /// Sets VX to the value of the delay timer.
     fn execute_op_fx07(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.registers[opcode.lr as usize] = self.delay_timer as u16;
         ProgramCounter::Next
     }
 
     /// A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
     fn execute_op_fx0a(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.keypad_waiting = true;
+        self.keypad_register = opcode.lr.into();
         ProgramCounter::Next
     }
 
     /// Sets the delay timer to VX.
     fn execute_op_fx15(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.delay_timer = opcode.lr;
         ProgramCounter::Next
     }
 
     /// Sets the sound timer to VX.
     fn execute_op_fx18(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.sound_timer = opcode.lr;
         ProgramCounter::Next
     }
 
     /// Adds VX to I. VF is not affected.
     fn execute_op_fx1e(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.index += self.registers[opcode.lr as usize];
         ProgramCounter::Next
     }
 
     /// Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
     fn execute_op_fx29(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.index = (self.registers[opcode.lr as usize]) * 5;
         ProgramCounter::Next
     }
 
     /// Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2.
     fn execute_op_fx33(&mut self, opcode: &OpCode) -> ProgramCounter {
+        self.ram[self.index as usize] = (self.registers[opcode.lr as usize] / 100) as u8;
+        self.ram[self.index as usize + 1] = ((self.registers[opcode.lr as usize] % 100) / 10) as u8;
+        self.ram[self.index as usize + 2] = (self.registers[opcode.lr as usize] % 10) as u8;
         ProgramCounter::Next
     }
 
     /// Stores V0 to VX (including VX) in memory starting at address I.
     fn execute_op_fx55(&mut self, opcode: &OpCode) -> ProgramCounter {
+        for i in 0..self.registers[opcode.lr as usize] + 1 {
+            self.ram[self.index as usize + i as usize] = self.registers[i as usize] as u8;
+        }
         ProgramCounter::Next
     }
 
     /// Fills V0 to VX (including VX) with values from memory starting at address I.
     fn execute_op_fx65(&mut self, opcode: &OpCode) -> ProgramCounter {
+        for i in 0..self.registers[opcode.lr as usize] + 1 {
+            self.registers[i as usize] = self.ram[self.index as usize + i as usize].into();
+        }
         ProgramCounter::Next
     }
 }
