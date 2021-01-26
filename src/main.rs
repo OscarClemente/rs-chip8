@@ -17,7 +17,7 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
 
     let mut cpu = CPU::new();
-    cpu.load("roms/test1.ch8");
+    //cpu.load("roms/test1.ch8");
 
     /*for _ in 0..100 {
         cpu.cycle();

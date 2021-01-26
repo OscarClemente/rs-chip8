@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use rand::Rng;
 
+#[derive(PartialEq)]
+#[derive(Debug)]
 enum ProgramCounter {
     Next,
     Skip,
@@ -63,7 +65,7 @@ impl CPU {
             sp: 0,
             registers: [0; 16],
             stack: [0; 16],
-            ram,
+            ram: [0; 4096],
             vram: [[0; 64]; 32],
             vram_changed: false,
             index: 0,
@@ -75,9 +77,10 @@ impl CPU {
         }
     }
 
-    pub fn load(&mut self, filename: &str) {
-        let mut f = File::open(filename).expect("File not found");
-        f.read(&mut self.ram[0x200..]).unwrap();
+    pub fn load(&mut self, data: &[u8]) {
+        //let mut f = File::open(filename).expect("File not found");
+        //f.read(&mut self.ram[0x200..]).unwrap();
+        self.ram[0x200..(0x200 + data.len())].clone_from_slice(data)
     }
 
     pub fn cycle(&mut self) {
@@ -128,7 +131,11 @@ impl CPU {
             _ => ProgramCounter::Next,
         };
 
-        self.pc += OPCODE_SIZE;
+        match pc_change {
+            ProgramCounter::Next => self.pc += OPCODE_SIZE,
+            ProgramCounter::Skip => self.pc += OPCODE_SIZE + OPCODE_SIZE,
+            ProgramCounter::Jump(addr) => self.pc = addr,
+        }
     }
     
     /// Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN.
@@ -382,3 +389,7 @@ impl CPU {
         ProgramCounter::Next
     }
 }
+
+#[cfg(test)]
+#[path = "./cpu_tests.rs"]
+mod cpu_tests;
