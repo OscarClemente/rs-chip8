@@ -147,7 +147,7 @@ impl CPU {
 
     /// Clears the screen.
     fn execute_op_00e0(&mut self, opcode: &OpCode) -> ProgramCounter {
-        //self.vram.iter_mut().for_each(|x| *x = 0);
+        self.vram.iter_mut().for_each(|x| x.iter_mut().for_each(|y| *y = 0));
         self.vram_changed = true;
         ProgramCounter::Next
     }
