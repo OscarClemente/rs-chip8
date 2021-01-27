@@ -258,3 +258,125 @@ fn test_execute_op_7xnn() {
     assert_eq!(program_counter, expected_program_counter);
     assert_eq!(cpu.registers[1], 0x17u16);
 }
+
+#[test]
+fn test_execute_op_8xy0() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x0,
+    };
+    cpu.registers[1] = 0x0u16;
+    cpu.registers[2] = 0x44u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy0(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 0x44u16);
+    assert_eq!(cpu.registers[2], 0x44u16);
+}
+
+#[test]
+fn test_execute_op_8xy1() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x1,
+    };
+    cpu.registers[1] = 0b11010100u16;
+    cpu.registers[2] = 0b01100110u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy1(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 0b11110110u16);
+    assert_eq!(cpu.registers[2], 0b01100110u16);
+}
+
+#[test]
+fn test_execute_op_8xy2() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x2,
+    };
+    cpu.registers[1] = 0b11010100u16;
+    cpu.registers[2] = 0b01100110u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy2(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 0b01000100u16);
+    assert_eq!(cpu.registers[2], 0b01100110u16);
+}
+
+#[test]
+fn test_execute_op_8xy3() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x3,
+    };
+    cpu.registers[1] = 0b11010100u16;
+    cpu.registers[2] = 0b01100110u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy3(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 0b10110010u16);
+    assert_eq!(cpu.registers[2], 0b01100110u16);
+}
+
+#[test]
+fn test_execute_op_8xy4_no_carry() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x4,
+    };
+    cpu.registers[1] = 0x05u16;
+    cpu.registers[2] = 0x12u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy4(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 0x17u16);
+    assert_eq!(cpu.registers[2], 0x12u16);
+    assert_eq!(cpu.registers[15], 0);
+}
+
+#[test]
+fn test_execute_op_8xy4_carry() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0x8,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x4,
+    };
+    cpu.registers[1] = 200u16;
+    cpu.registers[2] = 200u16;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_8xy4(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 400u16);
+    assert_eq!(cpu.registers[2], 200u16);
+    assert_eq!(cpu.registers[15], 1);
+}

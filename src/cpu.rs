@@ -225,7 +225,7 @@ impl CPU {
         ProgramCounter::Next
     }
 
-    /// Sets VX to VX xor VY.
+    /// Sets VX to VX xor VY. (Bitwise XOR operation)
     fn execute_op_8xy3(&mut self, opcode: &OpCode) -> ProgramCounter {
         self.registers[opcode.lr as usize] ^= self.registers[opcode.rl as usize];
         ProgramCounter::Next
