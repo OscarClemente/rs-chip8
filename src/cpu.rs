@@ -240,9 +240,8 @@ impl CPU {
 
     /// VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
     fn execute_op_8xy5(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let result = self.registers[opcode.lr as usize] - self.registers[opcode.rl as usize];
-        self.registers[opcode.lr as usize] = result;
-        self.registers[15] = if result > 0 { 1 } else { 0 };
+        self.registers[15] = if self.registers[opcode.lr as usize] > self.registers[opcode.rl as usize] { 1 } else { 0 };
+        self.registers[opcode.lr as usize] = self.registers[opcode.lr as usize].wrapping_sub(self.registers[opcode.rl as usize]);
         ProgramCounter::Next
     }
 
@@ -255,15 +254,14 @@ impl CPU {
 
     /// Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
     fn execute_op_8xy7(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let result = self.registers[opcode.rl as usize] - self.registers[opcode.lr as usize];
-        self.registers[opcode.lr as usize] = result;
-        self.registers[15] = if result > 0 { 1 } else { 0 };
+        self.registers[15] = if self.registers[opcode.rl as usize] > self.registers[opcode.lr as usize] { 1 } else { 0 };
+        self.registers[opcode.lr as usize] = self.registers[opcode.rl as usize].wrapping_sub(self.registers[opcode.lr as usize]);
         ProgramCounter::Next
     }
 
     /// Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
     fn execute_op_8xye(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.registers[15] = (self.registers[opcode.lr as usize] & 0b10000000);
+        self.registers[15] = (self.registers[opcode.lr as usize] >> 7 & 0b00000001);
         self.registers[opcode.lr as usize] <<= 1;
         ProgramCounter::Next
     }
