@@ -34,15 +34,15 @@ impl OpCode {
         ((self.lr as usize) << 8) | ((self.rl as usize) << 4) | (self.rr as usize)
     }
 
-    pub fn get_nn(&self) -> u16 {
-        ((self.rl as u16) << 4) | (self.rr as u16)
+    pub fn get_nn(&self) -> u8 {
+        ((self.rl) << 4) | self.rr
     }
 }
 
 pub struct CPU {
     pc: usize,
     sp: usize,
-    registers: [u16; 16],
+    registers: [u8; 16],
     stack: [usize; 16],
     ram: [u8; 4096],
     vram: [[u8; 64]; 32],
@@ -172,8 +172,7 @@ impl CPU {
 
     /// Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
     fn execute_op_3xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let nn: u16 = (opcode.rl << 4 | opcode.rr) as u16;
-        if self.registers[opcode.lr as usize] == nn {
+        if self.registers[opcode.lr as usize] == opcode.get_nn() {
             return ProgramCounter::Skip;
         }
         ProgramCounter::Next
@@ -233,8 +232,8 @@ impl CPU {
 
     /// Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
     fn execute_op_8xy4(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let result = self.registers[opcode.lr as usize] + self.registers[opcode.rl as usize];
-        self.registers[opcode.lr as usize] = result;
+        let result: u16 = self.registers[opcode.lr as usize] as u16 + self.registers[opcode.rl as usize] as u16;
+        self.registers[opcode.lr as usize] = result as u8;
         self.registers[15] = if result > 0xFF { 1 } else { 0 };
         ProgramCounter::Next
     }
@@ -291,7 +290,7 @@ impl CPU {
 
     /// Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
     fn execute_op_cxnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        let random_number: u16 = rand::thread_rng().gen::<u8>().into();
+        let random_number: u8 = rand::thread_rng().gen::<u8>().into();
         self.registers[opcode.lr as usize] = random_number & opcode.get_nn();
         ProgramCounter::Next
     }
@@ -300,11 +299,11 @@ impl CPU {
     fn execute_op_dxyn(&mut self, opcode: &OpCode) -> ProgramCounter {
         self.registers[15] = 0;
         for byte in 0..opcode.rr {
-            let y = (self.registers[opcode.rl as usize] + byte as u16) % 32;
+            let y = (self.registers[opcode.rl as usize] + byte) % 32;
             for bit in 0..8 {
                 let x = (self.registers[opcode.lr as usize] + bit) % 64;
                 let color = (self.ram[(self.index + byte as u16) as usize] >> (7 - bit)) & 0x01;
-                self.registers[15] |= (color & self.vram[y as usize][x as usize]) as u16;
+                self.registers[15] |= (color & self.vram[y as usize][x as usize]);
                 self.vram[y as usize][x as usize] ^= color;          
             }
         }
@@ -330,7 +329,7 @@ impl CPU {
 
     /// Sets VX to the value of the delay timer.
     fn execute_op_fx07(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.registers[opcode.lr as usize] = self.delay_timer as u16;
+        self.registers[opcode.lr as usize] = self.delay_timer;
         ProgramCounter::Next
     }
 
@@ -355,13 +354,13 @@ impl CPU {
 
     /// Adds VX to I. VF is not affected.
     fn execute_op_fx1e(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.index += self.registers[opcode.lr as usize];
+        self.index += self.registers[opcode.lr as usize] as u16;
         ProgramCounter::Next
     }
 
     /// Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
     fn execute_op_fx29(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.index = (self.registers[opcode.lr as usize]) * 5;
+        self.index = ((self.registers[opcode.lr as usize]) * 5) as u16;
         ProgramCounter::Next
     }
 
