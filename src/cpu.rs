@@ -340,13 +340,13 @@ impl CPU {
 
     /// Sets the delay timer to VX.
     fn execute_op_fx15(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.delay_timer = opcode.lr;
+        self.delay_timer = self.registers[opcode.lr as usize];
         ProgramCounter::Next
     }
 
     /// Sets the sound timer to VX.
     fn execute_op_fx18(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.sound_timer = opcode.lr;
+        self.sound_timer = self.registers[opcode.lr as usize];
         ProgramCounter::Next
     }
 
@@ -372,7 +372,7 @@ impl CPU {
 
     /// Stores V0 to VX (including VX) in memory starting at address I.
     fn execute_op_fx55(&mut self, opcode: &OpCode) -> ProgramCounter {
-        for i in 0..self.registers[opcode.lr as usize] + 1 {
+        for i in 0..opcode.lr as usize + 1 {
             self.ram[self.index as usize + i as usize] = self.registers[i as usize] as u8;
         }
         ProgramCounter::Next
@@ -380,7 +380,7 @@ impl CPU {
 
     /// Fills V0 to VX (including VX) with values from memory starting at address I.
     fn execute_op_fx65(&mut self, opcode: &OpCode) -> ProgramCounter {
-        for i in 0..self.registers[opcode.lr as usize] + 1 {
+        for i in 0..opcode.lr as usize + 1 {
             self.registers[i as usize] = self.ram[self.index as usize + i as usize].into();
         }
         ProgramCounter::Next

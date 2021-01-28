@@ -612,3 +612,251 @@ fn test_execute_op_dxyn() {
     assert_eq!(cpu.vram[1][8], 1);
     assert_eq!(cpu.vram[1][9], 0);
 }
+
+#[test]
+fn test_execute_op_ex9e_next() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xe,
+        lr: 0x1,
+        rl: 0x9,
+        rr: 0xe,
+    };
+    cpu.registers[1] = 5;
+    cpu.keypad[5] = false;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_ex9e(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+}
+
+#[test]
+fn test_execute_op_ex9e_skip() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xe,
+        lr: 0x1,
+        rl: 0x9,
+        rr: 0xe,
+    };
+    cpu.registers[1] = 5;
+    cpu.keypad[5] = true;
+    let expected_program_counter = ProgramCounter::Skip;
+
+    let program_counter = cpu.execute_op_ex9e(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+}
+
+#[test]
+fn test_execute_op_exa1_next() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xe,
+        lr: 0x1,
+        rl: 0xa,
+        rr: 0x1,
+    };
+    cpu.registers[1] = 5;
+    cpu.keypad[5] = true;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_exa1(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+}
+
+#[test]
+fn test_execute_op_exa1_skip() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xe,
+        lr: 0x1,
+        rl: 0xa,
+        rr: 0x1,
+    };
+    cpu.registers[1] = 5;
+    cpu.keypad[5] = false;
+    let expected_program_counter = ProgramCounter::Skip;
+
+    let program_counter = cpu.execute_op_exa1(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+}
+
+#[test]
+fn test_execute_op_fx07() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x0,
+        rr: 0x7,
+    };
+    cpu.delay_timer = 7;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx07(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.registers[1], 7);
+}
+
+#[test]
+fn test_execute_op_fx0a() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x7,
+        rl: 0x0,
+        rr: 0xa,
+    };
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx0a(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.keypad_waiting, true);
+    assert_eq!(cpu.keypad_register, 7);
+}
+
+#[test]
+fn test_execute_op_fx15() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x1,
+        rr: 0x5,
+    };
+    cpu.registers[1] = 5;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx15(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.delay_timer, 5);
+}
+
+#[test]
+fn test_execute_op_fx18() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x1,
+        rr: 0x8,
+    };
+    cpu.registers[1] = 5;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx18(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.sound_timer, 5);
+}
+
+#[test]
+fn test_execute_op_fx1e() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x1,
+        rr: 0xe,
+    };
+    cpu.index = 7;
+    cpu.registers[1] = 5;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx1e(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.index, 12);
+}
+
+#[test]
+fn test_execute_op_fx29() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x2,
+        rr: 0x9,
+    };
+    cpu.registers[1] = 5;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx29(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.index, 25);
+}
+
+#[test]
+fn test_execute_op_fx33() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x1,
+        rl: 0x3,
+        rr: 0x3,
+    };
+    cpu.registers[1] = 123;
+    cpu.index = 0x250;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx33(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    assert_eq!(cpu.ram[0x250], 1);
+    assert_eq!(cpu.ram[0x251], 2);
+    assert_eq!(cpu.ram[0x252], 3);
+}
+
+#[test]
+fn test_execute_op_fx55() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x8,
+        rl: 0x5,
+        rr: 0x5,
+    };
+    for i in 0..9 as usize {
+        cpu.registers[i] = i as u8;
+    }
+    cpu.index = 0x250;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx55(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    for i in 0..9 as usize {
+        assert_eq!(cpu.ram[0x250 + i], cpu.registers[i]);
+    }
+}
+
+#[test]
+fn test_execute_op_fx65() {
+    let mut cpu = CPU::new();
+    let opcode = OpCode {
+        ll: 0xf,
+        lr: 0x8,
+        rl: 0x6,
+        rr: 0x5,
+    };
+    for i in 0..9 as usize {
+        cpu.ram[0x250 + i] = i as u8;
+    }
+    cpu.index = 0x250;
+    let expected_program_counter = ProgramCounter::Next;
+
+    let program_counter = cpu.execute_op_fx65(&opcode);
+    
+    assert_eq!(program_counter, expected_program_counter);
+    for i in 0..9 as usize {
+        assert_eq!(cpu.registers[i], cpu.ram[0x250 + i]);
+    }
+}
