@@ -53,7 +53,7 @@ impl KeypadDriver {
                 chip8_keys[i] = true;
             }
         }
-
+        
         Ok(chip8_keys)
     }
 }
