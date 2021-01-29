@@ -162,8 +162,6 @@ impl CPU {
             _ => ProgramCounter::Next,
         };
 
-        println!("opcode: {:?}", opcode);
-
         match pc_change {
             ProgramCounter::Next => self.pc += OPCODE_SIZE,
             ProgramCounter::Skip => self.pc += OPCODE_SIZE + OPCODE_SIZE,
@@ -179,14 +177,14 @@ impl CPU {
     }
 
     /// Clears the screen.
-    fn execute_op_00e0(&mut self, opcode: &OpCode) -> ProgramCounter {
+    fn execute_op_00e0(&mut self, _opcode: &OpCode) -> ProgramCounter {
         self.vram.iter_mut().for_each(|x| x.iter_mut().for_each(|y| *y = 0));
         self.vram_changed = true;
         ProgramCounter::Next
     }
 
     /// Returns from a subroutine.
-    fn execute_op_00ee(&mut self, opcode: &OpCode) -> ProgramCounter {
+    fn execute_op_00ee(&mut self, _opcode: &OpCode) -> ProgramCounter {
         self.sp -= 1;
         ProgramCounter::Jump(self.stack[self.sp])
     }
@@ -281,7 +279,7 @@ impl CPU {
 
     /// Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
     fn execute_op_8xy6(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.registers[15] = (self.registers[opcode.lr as usize] & 0b00000001);
+        self.registers[15] = self.registers[opcode.lr as usize] & 0b00000001;
         self.registers[opcode.lr as usize] >>= 1;
         ProgramCounter::Next
     }
@@ -295,7 +293,7 @@ impl CPU {
 
     /// Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
     fn execute_op_8xye(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.registers[15] = (self.registers[opcode.lr as usize] >> 7 & 0b00000001);
+        self.registers[15] = self.registers[opcode.lr as usize] >> 7 & 0b00000001;
         self.registers[opcode.lr as usize] <<= 1;
         ProgramCounter::Next
     }
@@ -335,7 +333,7 @@ impl CPU {
             for bit in 0..8 {
                 let x = (self.registers[opcode.lr as usize] + bit) % 64;
                 let color = (self.ram[(self.index + byte as u16) as usize] >> (7 - bit)) & 0x01;
-                self.registers[15] |= (color & self.vram[y as usize][x as usize]);
+                self.registers[15] |= color & self.vram[y as usize][x as usize];
                 self.vram[y as usize][x as usize] ^= color;          
             }
         }

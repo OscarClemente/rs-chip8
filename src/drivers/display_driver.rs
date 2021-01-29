@@ -28,7 +28,7 @@ impl DisplayDriver {
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
             .window(
-                "rust-sdl2_gfx: draw line & FPSManager",
+                "rs-chip8",
                 SCREEN_WIDTH,
                 SCREEN_HEIGHT,
             )
