@@ -13,7 +13,6 @@ const SCREEN_HEIGHT: u32 = (CHIP8_HEIGHT as u32) * SCALE_FACTOR;
 
 pub struct DisplayDriver {
     canvas: Canvas<Window>,
-    scale_factor: u32,
     color_background: sdl2::pixels::Color,
     color_foreground: sdl2::pixels::Color,
 }
@@ -21,7 +20,6 @@ pub struct DisplayDriver {
 impl DisplayDriver {
     pub fn new(
         sdl_context: &sdl2::Sdl,
-        scale_factor: u32,
         color_background: sdl2::pixels::Color,
         color_foreground: sdl2::pixels::Color,
     ) -> Self {
@@ -45,7 +43,6 @@ impl DisplayDriver {
 
         DisplayDriver {
             canvas,
-            scale_factor,
             color_background,
             color_foreground,
         }
