@@ -235,7 +235,8 @@ impl CPU {
 
     /// Adds NN to VX. (Carry flag is not changed)
     fn execute_op_7xnn(&mut self, opcode: &OpCode) -> ProgramCounter {
-        self.registers[opcode.lr as usize] += opcode.get_nn();
+        let result: u16 = self.registers[opcode.lr as usize] as u16 + opcode.get_nn() as u16;
+        self.registers[opcode.lr as usize] = result as u8;
         ProgramCounter::Next
     }
 

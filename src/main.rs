@@ -23,7 +23,7 @@ fn main() {
     let mut cpu = CPU::new();
 
 
-    let mut f = File::open("roms/test1.ch8").expect("File not found");
+    let mut f = File::open("roms/test_opcode.ch8").expect("File not found");
     let mut rom = [0u8; 3584];
     f.read(&mut rom).unwrap();
     cpu.load(&rom);
