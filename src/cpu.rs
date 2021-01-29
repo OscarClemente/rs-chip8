@@ -1,6 +1,11 @@
-use std::fs::File;
-use std::io::prelude::*;
 use rand::Rng;
+use crate::fonts::FONT_SET;
+
+pub struct OutputState<'a> {
+    pub vram: &'a [[u8; 64]; 32],
+    pub vram_changed: bool,
+    pub beep: bool,
+}
 
 #[derive(PartialEq)]
 #[derive(Debug)]
@@ -57,15 +62,18 @@ pub struct CPU {
 
 impl CPU {
     pub fn new() -> Self {
+
         let mut ram = [0u8; 4096];
-        // TODO: Fonts
+        for i in 0..FONT_SET.len() {
+            ram[i] = FONT_SET[i];
+        }
 
         CPU {
             pc: 0x200,
             sp: 0,
             registers: [0; 16],
             stack: [0; 16],
-            ram: [0; 4096],
+            ram,
             vram: [[0; 64]; 32],
             vram_changed: false,
             index: 0,
@@ -78,13 +86,36 @@ impl CPU {
     }
 
     pub fn load(&mut self, data: &[u8]) {
-        //let mut f = File::open(filename).expect("File not found");
-        //f.read(&mut self.ram[0x200..]).unwrap();
         self.ram[0x200..(0x200 + data.len())].clone_from_slice(data)
     }
 
-    pub fn cycle(&mut self) {
-        self.run_opcode(&self.get_opcode());
+    pub fn cycle(&mut self, keypad: [bool; 16]) -> OutputState{
+        self.keypad = keypad;
+        self.vram_changed = false;
+
+        if self.keypad_waiting {
+            for i in 0..keypad.len() {
+                if keypad[i] {
+                    self.keypad_waiting = false;
+                    self.registers[self.keypad_register] = i as u8;
+                    break;
+                }
+            }
+        } else {
+            if self.delay_timer > 0 {
+                self.delay_timer -= 1;
+            }
+            if self.sound_timer > 0 {
+                self.sound_timer -= 1;
+            }
+            self.run_opcode(&self.get_opcode());
+        }
+
+        OutputState {
+            vram: &self.vram,
+            vram_changed: self.vram_changed,
+            beep: self.sound_timer > 0,
+        }
     }
 
     fn get_opcode(&self) -> OpCode {
@@ -93,9 +124,9 @@ impl CPU {
 
     fn run_opcode(&mut self, opcode: &OpCode) {
         let pc_change = match (opcode.ll, opcode.lr, opcode.rl, opcode.rr) {
-            (0x0,   _,   _,   _) => self.execute_op_0nnn(opcode),
             (0x0, 0x0,   _, 0x0) => self.execute_op_00e0(opcode),
             (0x0, 0x0,   _,   _) => self.execute_op_00ee(opcode),
+            (0x0,   _,   _,   _) => self.execute_op_0nnn(opcode),
             (0x1,   _,   _,   _) => self.execute_op_1nnn(opcode),
             (0x2,   _,   _,   _) => self.execute_op_2nnn(opcode),
             (0x3,   _,   _,   _) => self.execute_op_3xnn(opcode),
@@ -130,6 +161,8 @@ impl CPU {
             (0xF,   _, 0x6, 0x5) => self.execute_op_fx65(opcode),
             _ => ProgramCounter::Next,
         };
+
+        println!("opcode: {:?}", opcode);
 
         match pc_change {
             ProgramCounter::Next => self.pc += OPCODE_SIZE,
